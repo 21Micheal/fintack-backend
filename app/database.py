@@ -34,15 +34,17 @@ def get_database_url():
 def create_engine_with_ssl():
     db_url = get_database_url()
     
-    # Base connect_args for asyncpg
+    # Standard asyncpg connection arguments
     connect_args = {
-        "statement_cache_size": 0, 
+        "statement_cache_size": 0,
         "prepared_statement_cache_size": 0,
         "server_settings": {
-            "search_path": "public"  # This forces the 'public' schema
+            "search_path": "public",
+            "application_name": "finance_tracker_backend"
         }
     }
     
+    # Handle SSL for Production
     if settings.ENVIRONMENT == "production":
         ssl_context = ssl.create_default_context()
         ssl_context.check_hostname = False
@@ -52,6 +54,7 @@ def create_engine_with_ssl():
     return create_async_engine(
         db_url,
         echo=True,
+        # NullPool is REQUIRED for Supabase Transaction Pooler (6543)
         poolclass=NullPool if "6543" in db_url else None,
         connect_args=connect_args
     )
