@@ -1,6 +1,18 @@
 # app/models/__init__.py
-from app.db.session import Base
-from app.models.transaction import Transaction, User, Alert, AdvisorContext, FinancialProfile, Goal, AICache
+from app.models.user import User
+from app.models.transaction import Transaction
+from app.models.alert import Alert
+from app.models.ai_cache import AICache
+from app.models.financial_profile import FinancialProfile
+from app.models.advisor_context import AdvisorContext
+from app.models.goal import Goal
 
-# This list helps keep track of what is available for export
-__all__ = ["Base", "User", "Transaction", "Alert", "Goal", "FinancialProfile", "AdvisorContext"]
+__all__ = [
+    'User',
+    'Transaction',
+    'Alert',
+    'AICache',
+    'FinancialProfile',
+    'AdvisorContext',
+    'Goal'
+]

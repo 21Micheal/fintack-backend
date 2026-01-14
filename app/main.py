@@ -32,10 +32,23 @@ logger = logging.getLogger(__name__)
 # -------------------- Lifespan Manager --------------------
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    async with engine.begin() as conn:
-        # This will now create all tables in the 'public' schema
-        await conn.run_sync(Base.metadata.create_all)
+    """Lifespan context manager for startup/shutdown events"""
+    logger.info("🚀 Starting application...")
+    
+    try:
+        # Create all tables
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+        logger.info("✅ Database tables created successfully")
+    except Exception as e:
+        logger.error(f"❌ Error creating database tables: {e}")
+        raise
+    
+    logger.info("✅ Application startup complete")
     yield
+    
+    logger.info("🛑 Application shutting down...")
+    await engine.dispose()
 # -------------------- App Initialization --------------------
 app = FastAPI(
     title="Finance Tracker API",

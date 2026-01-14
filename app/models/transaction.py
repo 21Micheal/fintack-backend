@@ -1,35 +1,15 @@
+# app/models/transaction.py
 from sqlalchemy import (
     Column, String, Float, Date, Text, DateTime, func,
-    Boolean, ForeignKey, UniqueConstraint
+    ForeignKey
 )
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import relationship
 import uuid
-from app.db.session import Base
-from datetime import datetime
-
-class User(Base):
-    __tablename__ = "users"
-    __table_args__ = (
-        UniqueConstraint("email", "phone", name="uix_user_email_phone"),
-        {"schema": "public"}
-    )
-
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    email = Column(String, unique=True, nullable=True)
-    phone = Column(String, unique=True, nullable=True)
-    name = Column(String, nullable=True)
-    hashed_password = Column(String, nullable=True)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
-
-    transactions = relationship("Transaction", back_populates="user")
-    advisor_context = relationship("AdvisorContext", back_populates="user", uselist=False)
-    profiles = relationship("FinancialProfile", back_populates="user")
+from app.database import Base
 
 class Transaction(Base):
     __tablename__ = "transactions"
-    __table_args__ = {"schema": "public"}
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     name = Column(String(255), nullable=True)
@@ -52,83 +32,10 @@ class Transaction(Base):
     type = Column(String, nullable=False, default="expense")
     currency = Column(String, default="KES")
     raw_content = Column(Text, nullable=True)
-
-    # Point to public.users.id
-    user_id = Column(UUID(as_uuid=True), ForeignKey("public.users.id"), nullable=True)
-    user = relationship("User", back_populates="transactions")
-
-class Alert(Base):
-    __tablename__ = "alerts"
-    __table_args__ = {"schema": "public"}
-
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    user_id = Column(UUID(as_uuid=True), ForeignKey("public.users.id"), nullable=False)
-    title = Column(String(120), nullable=False)
-    message = Column(Text, nullable=False)
-    severity = Column(String(50), default="info")
-    category = Column(String(50), nullable=True)
-    ai_insight = Column(Text, nullable=True)
-    is_read = Column(Boolean, default=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, onupdate=datetime.utcnow)
-
-class AICache(Base):
-    __tablename__ = "ai_cache"
-    __table_args__ = {"schema": "public"}
-
-    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    user_id = Column(UUID(as_uuid=True), index=True)
-    alert_hash = Column(String(128), index=True)
-    alert_title = Column(String(255))
-    alert_message = Column(Text)
-    applied = Column(Boolean, default=False)
-    transaction_summary = Column(JSONB)
-    ai_response = Column(Text, nullable=False)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    last_refreshed_at = Column(DateTime(timezone=True), server_default=func.now())
-    refresh_needed = Column(Boolean, default=False)
-
-class FinancialProfile(Base):
-    __tablename__ = "financial_profiles"
-    __table_args__ = {"schema": "public"}
-
-    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    user_id = Column(UUID(as_uuid=True), ForeignKey("public.users.id"), nullable=False)
-    month = Column(String(10), index=True)
-    total_income = Column(Float, default=0)
-    total_expenses = Column(Float, default=0)
-    savings = Column(Float, default=0)
-    top_category = Column(String(50))
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-
-    user = relationship("User", back_populates="profiles")
-
-class AdvisorContext(Base):
-    __tablename__ = "advisor_context"
-    __table_args__ = {"schema": "public"}
-
-    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    user_id = Column(UUID(as_uuid=True), ForeignKey("public.users.id"), nullable=False)
-    alert_summary = Column(Text, nullable=True)
-    ai_summary = Column(Text, nullable=True)
-    last_profile_snapshot = Column(Text, nullable=True)
-    last_generated_at = Column(DateTime(timezone=True), server_default=func.now())
-
-    user = relationship("User", back_populates="advisor_context")
-
-class Goal(Base):
-    __tablename__ = "savings_goals"
-    __table_args__ = {"schema": "public"}
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
     
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    user_id = Column(UUID(as_uuid=True), nullable=False, index=True)
-    name = Column(String(100), nullable=False)
-    target_amount = Column(Float, nullable=False)
-    current_amount = Column(Float, default=0.0)
-    deadline = Column(Date, nullable=True)
-    category = Column(String(50), default="savings")
-    color = Column(String(7), default="#10b981")
-    icon = Column(String(50), default="target")
-    is_active = Column(Boolean, default=True)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    # Relationship
+    user = relationship("User", back_populates="transactions")
+    
+    def __repr__(self):
+        return f"<Transaction(id={self.id}, amount={self.amount}, category={self.category})>"
