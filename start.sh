@@ -1,5 +1,8 @@
 #!/bin/sh
-# Simple start.sh that works with sh (not bash)
+# start.sh for Railway
+
+# Set default port if PORT is not set
+PORT=${PORT:-8000}
 
 # Initialize database
 echo "🔄 Initializing database..."
@@ -37,5 +40,5 @@ asyncio.run(init_db())
 "
 
 # Start the app
-echo "🚀 Starting application..."
-exec uvicorn app.main:app --host 0.0.0.0 --port \${PORT:-8000} --workers 1
+echo "🚀 Starting application on port $PORT..."
+exec uvicorn app.main:app --host 0.0.0.0 --port "$PORT" --workers 1
