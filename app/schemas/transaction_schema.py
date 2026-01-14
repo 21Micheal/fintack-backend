@@ -28,5 +28,6 @@ class TransactionResponse(BaseModel):
     created_at: Optional[datetime]
     updated_at: Optional[datetime] = None
 
-    class Config:
-        orm_mode = True
+    model_config = {
+        "from_attributes": True # ✅ Correct for V2
+    }
