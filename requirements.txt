@@ -6,7 +6,6 @@ pydantic-settings>=2.1.0
 pydantic-extra-types>=2.4.0
 
 # --- DATABASE & SUPABASE ---
-# Removed postgrest to let supabase manage its own sub-dependencies
 supabase==2.3.0
 SQLAlchemy>=2.0.23
 psycopg2-binary>=2.9.9
@@ -21,7 +20,7 @@ python-multipart>=0.0.6
 cryptography>=41.0.7
 pyjwt>=2.8.0
 
-# --- NETWORKING (PINNED FOR COMPATIBILITY) ---
+# --- NETWORKING ---
 httpx==0.24.1
 requests>=2.31.0
 python-dotenv==1.0.0
@@ -30,9 +29,11 @@ phonenumbers>=8.13.27
 python-magic>=0.4.27
 Pillow>=10.3.0 
 
-# --- FINANCIAL DATA ---
+# --- FINANCIAL DATA & AI (The "Heavy" Stuff) ---
 pandas>=2.1.0
 numpy>=1.26.0
+prophet==1.1.5
+holidays>=0.25
 
 # --- INTEGRATIONS ---
 plaid-python>=18.2.0
