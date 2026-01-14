@@ -1,9 +1,9 @@
 # app/core/advisor_ai.py
 from sqlalchemy.orm import Session
 from app.models.transaction import FinancialProfile, AdvisorContext
-import openai
 import logging
-from typing import Optional
+from typing import Optional, Dict, Any
+from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
@@ -21,13 +21,10 @@ async def generate_personalized_advice(db: Session, user_id: str) -> str:
         )
 
         if not profiles:
-            logger.info("No financial profiles found, returning default advice")
             return "No financial data available yet to generate advice. Start adding transactions to get personalized recommendations."
 
-        # Validate that we have at least one valid profile
         current_profile = profiles[0]
         if not current_profile:
-            logger.warning("Current profile is None, returning default advice")
             return "We're still processing your financial data. Please check back in a moment for personalized advice."
 
         # Get advisor context
@@ -37,106 +34,113 @@ async def generate_personalized_advice(db: Session, user_id: str) -> str:
             .first()
         )
 
-        # Safely access profile attributes with defaults
+        # Extract data
         current_income = getattr(current_profile, 'total_income', 0) or 0
         current_expenses = getattr(current_profile, 'total_expenses', 0) or 0
         current_savings = getattr(current_profile, 'savings', 0) or 0
         current_top_category = getattr(current_profile, 'top_category', 'None') or 'None'
-        current_month = getattr(current_profile, 'month', 'Current') or 'Current'
-
-        # Get previous profile if available
+        
+        # Calculate savings rate
+        savings_rate = (current_savings / current_income * 100) if current_income > 0 else 0
+        
+        # Get previous data for trends
         previous_profile = profiles[1] if len(profiles) > 1 else None
         previous_income = getattr(previous_profile, 'total_income', 0) if previous_profile else 0
         previous_expenses = getattr(previous_profile, 'total_expenses', 0) if previous_profile else 0
         previous_savings = getattr(previous_profile, 'savings', 0) if previous_profile else 0
-        previous_month = getattr(previous_profile, 'month', 'Previous') if previous_profile else 'N/A'
-
-        alert_summary = getattr(context, 'alert_summary', 'No recent alerts') if context else 'No recent alerts'
-        ai_summary = getattr(context, 'ai_summary', 'No previous insights') if context else 'No previous insights'
-
-        # Calculate month-over-month changes if we have valid previous data
-        changes = {}
-        if previous_profile and previous_income > 0 and current_income > 0:
-            try:
-                income_change = ((current_income - previous_income) / previous_income) * 100
-                expense_change = ((current_expenses - previous_expenses) / previous_expenses) * 100 if previous_expenses > 0 else 0
-                savings_change = ((current_savings - previous_savings) / previous_savings) * 100 if previous_savings > 0 else 0
-                changes = {
-                    "income_change": round(income_change, 1),
-                    "expense_change": round(expense_change, 1),
-                    "savings_change": round(savings_change, 1)
-                }
-                logger.info(f"Calculated changes: {changes}")
-            except (ZeroDivisionError, TypeError) as calc_error:
-                logger.warning(f"Error calculating changes: {calc_error}")
-                changes = {}
-
-        # Format values for the prompt - FIXED THE STRING FORMATTING ISSUE
-        current_income_str = f"KES {current_income:,.2f}" if current_income > 0 else "KES 0.00"
-        current_expenses_str = f"KES {current_expenses:,.2f}" if current_expenses > 0 else "KES 0.00"
-        current_savings_str = f"KES {current_savings:,.2f}" if current_savings > 0 else "KES 0.00"
         
-        previous_income_str = f"KES {previous_income:,.2f}" if previous_income > 0 else "N/A"
-        previous_expenses_str = f"KES {previous_expenses:,.2f}" if previous_expenses > 0 else "N/A"
-        previous_savings_str = f"KES {previous_savings:,.2f}" if previous_savings > 0 else "N/A"
-
-        # Build the prompt with corrected formatting
-        prompt = f"""
-        You are a smart financial advisor analyzing user spending patterns.
-
-        USER FINANCIAL CONTEXT:
-        - Latest alerts: {alert_summary}
-        - Previous AI insights: {ai_summary}
-
-        CURRENT MONTH ({current_month}):
-        - Income: {current_income_str}
-        - Expenses: {current_expenses_str}
-        - Savings: {current_savings_str}
-        - Top Spending Category: {current_top_category}
-
-        PREVIOUS MONTH ({previous_month}):
-        - Income: {previous_income_str}
-        - Expenses: {previous_expenses_str}
-        - Savings: {previous_savings_str}
-
-        {f"MONTHLY CHANGES:" if changes else "TREND ANALYSIS:"}
-        {f"- Income change: {changes.get('income_change', 0):+.1f}%" if changes else "- Not enough data for trend analysis yet"}
-        {f"- Expense change: {changes.get('expense_change', 0):+.1f}%" if changes else ""}
-        {f"- Savings change: {changes.get('savings_change', 0):+.1f}%" if changes and changes.get('savings_change') is not None else ""}
-
-        Task: Provide 2-3 short, actionable, and motivational financial recommendations based on this data.
-        Focus on specific behavior changes, trend analysis, and practical budgeting improvements.
-        Make it personal and relevant to their spending patterns.
-        Format as bullet points with clear, concise language.
-        Be encouraging and helpful.
-
-        If the user has no transactions yet, provide welcoming advice about getting started with financial tracking.
-        If they have low savings, suggest practical ways to increase savings.
-        If they have consistent spending, acknowledge good habits.
-        """
-
-        logger.info("Calling OpenAI for AI-generated advice")
-        logger.debug(f"Prompt sent to OpenAI: {prompt}")
+        # Calculate trends
+        income_trend = "stable"
+        expense_trend = "stable"
+        savings_trend = "stable"
         
-        response = await openai.ChatCompletion.acreate(
-            model="gpt-4o-mini",
-            messages=[{"role": "user", "content": prompt}],
-            max_tokens=300,
-            temperature=0.7,
-        )
-
-        advice = response.choices[0].message.content.strip()
-        logger.info("Successfully generated AI advice")
+        if previous_profile and previous_income > 0:
+            income_change = ((current_income - previous_income) / previous_income) * 100
+            income_trend = "increasing" if income_change > 5 else "decreasing" if income_change < -5 else "stable"
+            
+            if previous_expenses > 0:
+                expense_change = ((current_expenses - previous_expenses) / previous_expenses) * 100
+                expense_trend = "increasing" if expense_change > 5 else "decreasing" if expense_change < -5 else "stable"
+            
+            if previous_savings > 0:
+                savings_change = ((current_savings - previous_savings) / previous_savings) * 100
+                savings_trend = "increasing" if savings_change > 5 else "decreasing" if savings_change < -5 else "stable"
+        
+        # Generate advice based on rules
+        advice_points = []
+        
+        # Savings rate advice
+        if savings_rate < 10:
+            advice_points.append(f"• Your savings rate is {savings_rate:.1f}%, consider aiming for at least 20% by reducing discretionary spending")
+        elif savings_rate >= 20:
+            advice_points.append(f"• Great work! Your savings rate of {savings_rate:.1f}% is excellent")
+        else:
+            advice_points.append(f"• Your savings rate is {savings_rate:.1f}%, try to increase it by 5% next month")
+        
+        # Expense to income ratio
+        expense_ratio = (current_expenses / current_income * 100) if current_income > 0 else 0
+        if expense_ratio > 80:
+            advice_points.append("• Your expenses are high relative to income. Review your top category spending")
+        elif expense_ratio < 50:
+            advice_points.append("• Your spending is well-controlled relative to income")
+        
+        # Trend-based advice
+        if expense_trend == "increasing" and income_trend != "increasing":
+            advice_points.append(f"• Expenses are trending up while income is {income_trend}. Monitor your {current_top_category} spending")
+        elif savings_trend == "increasing":
+            advice_points.append("• Great progress! Your savings are trending upward")
+        
+        # Category-specific advice
+        category_advice = {
+            "Food": "Consider meal planning to reduce food expenses",
+            "Transport": "Explore carpooling or public transport options",
+            "Entertainment": "Look for free entertainment alternatives",
+            "Shopping": "Implement a 24-hour rule before non-essential purchases",
+            "Utilities": "Check for better utility provider rates",
+            "Mobile": "Review your mobile plan for better value"
+        }
+        
+        if current_top_category in category_advice:
+            advice_points.append(f"• {category_advice[current_top_category]}")
+        
+        # Check for alerts from context
+        if context:
+            alert_summary = getattr(context, 'alert_summary', '')
+            if "overspending" in alert_summary.lower():
+                advice_points.append("• You've had overspending alerts. Create a stricter budget for problem categories")
+            if "savings" in alert_summary.lower() and "low" in alert_summary.lower():
+                advice_points.append("• Set up automatic transfers to savings on payday")
+        
+        # If no specific advice generated, provide general tips
+        if not advice_points:
+            advice_points = [
+                "• Track all expenses daily to build awareness",
+                "• Set specific financial goals for motivation",
+                "• Review your budget weekly and adjust as needed",
+                "• Celebrate small financial wins to stay motivated"
+            ]
+        
+        # Add motivational message
+        if savings_rate > 15:
+            motivational = "Keep up the great financial habits!"
+        elif len(profiles) < 2:
+            motivational = "You're just getting started - consistency is key!"
+        else:
+            motivational = "Every small improvement adds up over time."
+        
+        advice = "\n".join(advice_points[:3])  # Limit to 3 points
+        advice += f"\n\n{motivational}"
+        
+        logger.info("Successfully generated rule-based advice")
         return advice
 
     except Exception as e:
-        logger.error(f"Error generating personalized advice: {str(e)}", exc_info=True)
-        # Return helpful default advice instead of error message
-        return """Based on your current financial setup, here are some general tips to get started:
+        logger.error(f"Error generating advice: {str(e)}", exc_info=True)
+        return """Based on your current financial setup, here are some tips:
+        
+• Track your daily expenses to understand spending patterns
+• Set achievable monthly savings goals
+• Review spending categories regularly
+• Use budgeting tools to stay on track
 
-• **Track your daily expenses** to understand where your money goes
-• **Set a monthly savings goal**, even if it's small to begin with  
-• **Review your spending categories** regularly to identify patterns
-• **Consider using budgeting categories** like Food, Transport, Entertainment
-
-As you add more transactions, I'll provide more personalized recommendations tailored to your spending habits!"""
+As you add more transactions, you'll get more personalized recommendations!"""
