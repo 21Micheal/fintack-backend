@@ -31,35 +31,17 @@ def get_database_url():
 # Create engine with SSL for production
 # app/database.py
 
-def create_engine_with_ssl():
-    db_url = get_database_url()
+# app/database.py
+def create_engine_for_railway():
+    db_url = get_database_url() # This will now be the Railway internal URL
     
-    # Standard asyncpg connection arguments
-    connect_args = {
-        "statement_cache_size": 0,
-        "prepared_statement_cache_size": 0,
-        "server_settings": {
-            "search_path": "public",
-            "application_name": "finance_tracker_backend"
-        }
-    }
-    
-    # Handle SSL for Production
-    if settings.ENVIRONMENT == "production":
-        ssl_context = ssl.create_default_context()
-        ssl_context.check_hostname = False
-        ssl_context.verify_mode = ssl.CERT_NONE
-        connect_args["ssl"] = ssl_context
-
     return create_async_engine(
         db_url,
         echo=True,
-        # NullPool is REQUIRED for Supabase Transaction Pooler (6543)
-        poolclass=NullPool if "6543" in db_url else None,
-        connect_args=connect_args
+        # We don't need NullPool or complex SSL for internal Railway traffic
     )
 # Create engine
-engine = create_engine_with_ssl()
+engine = create_engine_for_railway()
 AsyncSessionLocal = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 Base = declarative_base()
 

@@ -32,21 +32,10 @@ logger = logging.getLogger(__name__)
 # -------------------- Lifespan Manager --------------------
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # --- Startup Logic ---
-    logger.info("🚀 Starting Finance Tracker API...")
-    
-    # Create tables asynchronously
-    try:
-        async with engine.begin() as conn:
-            # This is the async-compatible way to create tables
-            await conn.run_sync(Base.metadata.create_all)
-        logger.info("✅ Database tables synced successfully")
-    except Exception as e:
-        logger.error(f"❌ Failed to sync database tables: {e}")
-        
+    # Startup: This will automatically create your tables in Railway Postgres
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
     yield
-    # --- Shutdown Logic ---
-    logger.info("🛑 Shutting down Finance Tracker API...")
 
 # -------------------- App Initialization --------------------
 app = FastAPI(
