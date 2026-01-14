@@ -34,14 +34,15 @@ def get_database_url():
 def create_engine_with_ssl():
     db_url = get_database_url()
     
-    # 1. Prepare base connect_args
-    # statement_cache_size=0 is the direct asyncpg way to disable prepared statements
+    # Base connect_args for asyncpg
     connect_args = {
         "statement_cache_size": 0, 
-        "prepared_statement_cache_size": 0
+        "prepared_statement_cache_size": 0,
+        "server_settings": {
+            "search_path": "public"  # This forces the 'public' schema
+        }
     }
     
-    # 2. Add SSL if in production
     if settings.ENVIRONMENT == "production":
         ssl_context = ssl.create_default_context()
         ssl_context.check_hostname = False
@@ -51,9 +52,8 @@ def create_engine_with_ssl():
     return create_async_engine(
         db_url,
         echo=True,
-        # Use NullPool for Supabase Transaction Pooler (port 6543)
         poolclass=NullPool if "6543" in db_url else None,
-        connect_args=connect_args  # Pass the dictionary here
+        connect_args=connect_args
     )
 # Create engine
 engine = create_engine_with_ssl()
