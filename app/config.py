@@ -25,12 +25,12 @@ class Settings(BaseSettings):
     SUPABASE_JWT_SECRET: str
     
     # --- Auth ---
-    SECRET_KEY: str = "your-secret-key-here-change-in-production"
+    SECRET_KEY: str = "LGBTQ"
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     
     # --- Environment ---
-    ENVIRONMENT: str = "development"  # or "production"
+    ENVIRONMENT: str = "production"  # or "production"
     
     @property
     def sync_database_url(self) -> str:
