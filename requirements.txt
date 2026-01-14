@@ -1,25 +1,23 @@
-# --- CORE API & SERVER ---
+# --- DATABASE & MIBRATIONS (Add these) ---
+supabase==2.3.0
+postgrest==0.16.2
+
+# --- REST OF YOUR REQUIREMENTS ---
 fastapi>=0.104.1
 uvicorn[standard]>=0.24.0
 pydantic>=2.5.0
 pydantic-settings>=2.1.0
 pydantic-extra-types>=2.4.0
-
-# --- DATABASE & MIGRATIONS ---
 SQLAlchemy>=2.0.23
 psycopg2-binary>=2.9.9
 asyncpg>=0.29.0
 alembic>=1.13.1
 sqlalchemy-utils>=0.41.1
-
-# --- AUTH & SECURITY ---
 python-jose[cryptography]>=3.3.0
 passlib[bcrypt]>=1.7.4
 python-multipart>=0.0.6
 cryptography>=41.0.7
 pyjwt>=2.8.0
-
-# --- NETWORKING & UTILS ---
 httpx>=0.25.1
 requests>=2.31.0
 python-dotenv>=1.0.0
@@ -27,18 +25,12 @@ python-dateutil>=2.8.2
 phonenumbers>=8.13.27
 python-magic>=0.4.27
 Pillow>=10.3.0 
-
-# --- FINANCIAL DATA ---
 pandas>=2.1.0
 numpy>=1.26.0
-
-# --- INTEGRATIONS ---
 plaid-python>=18.2.0
 resend>=2.10.0
 twilio>=8.8.0
-
-# --- FASTAPI UTILS & REDIS FIX ---
 fastapi-pagination>=0.12.0
-# Fix: Remove the [redis] extra and define redis version compatible with this package
 fastapi-cache2>=0.2.1
+# Keep this specific redis version to satisfy fastapi-cache2
 redis>=4.2.0,<5.0.0
