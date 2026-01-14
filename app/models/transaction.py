@@ -55,7 +55,7 @@ class Transaction(Base):
     currency = Column(String, default="KES")
     raw_content = Column(Text, nullable=True)
 
-    user_id = Column(UUID(as_uuid=True), ForeignKey("public.users.id"), nullable=True)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
     user = relationship("User", back_populates="transactions")
 
 
