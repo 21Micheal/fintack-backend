@@ -1,34 +1,41 @@
 #!/bin/sh
-# start.sh - Simple startup script for Railway
+# Simple start.sh that works with sh (not bash)
 
-# Set Python path
-export PYTHONPATH=/app:$PYTHONPATH
-
-# Initialize database tables
-echo "🔄 Initializing database tables..."
+# Initialize database
+echo "🔄 Initializing database..."
 python -c "
 import asyncio
 import sys
-import os
-
-# Add app to path
 sys.path.insert(0, '/app')
 
-async def init_tables():
+async def init_db():
     try:
         from app.database import engine, Base
-        from app.models import User, Transaction, Alert, AICache, FinancialProfile, AdvisorContext, Goal
+        from app.models.user import User
+        from app.models.transaction import Transaction
+        from app.models.alert import Alert
+        from app.models.ai_cache import AICache
+        from app.models.financial_profile import FinancialProfile
+        from app.models.advisor_context import AdvisorContext
+        from app.models.goal import Goal
         
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
-            print('✅ Database tables created successfully')
+        print('✅ Tables created')
+        
+        # Try to setup relationships
+        try:
+            from app.models import relationships
+            print('✅ Relationships configured')
+        except:
+            print('⚠️ No relationships module')
+            
     except Exception as e:
-        print(f'⚠️ Warning during table creation: {e}')
-        print('ℹ️ Continuing anyway...')
+        print(f'⚠️ {e}')
 
-# Run async function
-asyncio.run(init_tables())
+asyncio.run(init_db())
 "
 
-echo "🚀 Starting FastAPI application..."
-exec uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000} --workers 1
+# Start the app
+echo "🚀 Starting application..."
+exec uvicorn app.main:app --host 0.0.0.0 --port \${PORT:-8000} --workers 1

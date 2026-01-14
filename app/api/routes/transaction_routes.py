@@ -5,7 +5,8 @@ from sqlalchemy.orm import Session
 import httpx
 from app.config import settings
 from app.db.session import get_db
-from app.models.transaction import Transaction, User
+from app.models.transaction import Transaction
+from app.models.user import User
 from app.schemas.transaction_schema import TransactionResponse
 from datetime import datetime
 import logging

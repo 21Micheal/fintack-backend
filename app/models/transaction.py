@@ -4,7 +4,6 @@ from sqlalchemy import (
     ForeignKey
 )
 from sqlalchemy.dialects.postgresql import UUID, JSONB
-from sqlalchemy.orm import relationship
 import uuid
 from app.database import Base
 
@@ -34,8 +33,8 @@ class Transaction(Base):
     raw_content = Column(Text, nullable=True)
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
     
-    # Relationship
-    user = relationship("User", back_populates="transactions")
+    # Note: No relationship defined here to avoid circular imports
+    # Relationship will be defined separately or accessed via query
     
     def __repr__(self):
         return f"<Transaction(id={self.id}, amount={self.amount}, category={self.category})>"

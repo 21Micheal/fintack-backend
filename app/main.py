@@ -48,6 +48,38 @@ async def lifespan(app: FastAPI):
     yield
     
     logger.info("🛑 Application shutting down...")
+    await engine.dispose()# In main.py lifespan function
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Lifespan context manager for startup/shutdown events"""
+    logger.info("🚀 Starting Finance Tracker API...")
+    
+    # Import relationships module to set up relationships
+    try:
+        from app.models import relationships
+        logger.info("✅ Relationships configured")
+    except ImportError as e:
+        logger.warning(f"⚠️ Could not import relationships: {e}")
+    
+    # Database initialization
+    max_retries = 3
+    for attempt in range(max_retries):
+        try:
+            async with engine.begin() as conn:
+                await conn.run_sync(Base.metadata.create_all)
+            logger.info("✅ Database tables created successfully")
+            break
+        except Exception as e:
+            logger.error(f"❌ Attempt {attempt + 1}/{max_retries} - Error creating tables: {e}")
+            if attempt == max_retries - 1:
+                logger.warning("⚠️ Continuing without table creation - tables may already exist")
+            else:
+                import asyncio
+                await asyncio.sleep(2 ** attempt)  # Exponential backoff
+    
+    yield
+    
+    logger.info("🛑 Application shutting down...")
     await engine.dispose()
 # -------------------- App Initialization --------------------
 app = FastAPI(
