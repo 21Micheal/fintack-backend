@@ -19,7 +19,7 @@ import logging
 import time
 import os
 from contextlib import asynccontextmanager
-
+from app.models.transaction import Transaction, User, Alert, AdvisorContext, FinancialProfile, Goal, AICache
 
 # Configure logging first
 logging.basicConfig(
