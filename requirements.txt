@@ -26,12 +26,13 @@ python-dotenv==1.0.0
 python-dateutil==2.8.2
 phonenumbers==8.13.27
 python-magic==0.4.27
-Pillow==10.1.0
+# Bumped Pillow to 10.3.0 for better Python 3.11/3.12 support
+Pillow==10.3.0 
 
-# --- FINANCIAL DATA (Optimized) ---
-# We use the binary/pre-compiled versions to avoid build errors
-pandas==2.1.3
-numpy==1.26.2
+# --- FINANCIAL DATA ---
+# Using versions that have broad "wheel" (pre-built) support
+pandas==2.2.0
+numpy==1.26.4
 
 # --- INTEGRATIONS ---
 plaid-python==18.2.0
