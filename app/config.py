@@ -13,7 +13,7 @@ class Settings(BaseSettings):
     # --- Supabase Database (Production) ---
     # This should be your Supabase PostgreSQL connection string
     # Format: postgresql://postgres:[YOUR-PASSWORD]@db.jusvwaobbuiqblwnjler.supabase.co:5432/postgres
-    SUPABASE_DB_URL: str
+    DATABASE_URL: str
     
     # For backward compatibility, alias DATABASE_URL to SUPABASE_DB_URL
     DATABASE_URL: Optional[str] = None
