@@ -8,3 +8,11 @@ python-dotenv
 SQLAlchemy
 psycopg2-binary
 alembic
+httpx
+pytest
+pytest-asyncio
+pytest-cov
+black
+isort
+mypy
+flake8  
