@@ -55,7 +55,7 @@ class Transaction(Base):
     currency = Column(String, default="KES")
     raw_content = Column(Text, nullable=True)
 
-    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("public.users.id"), nullable=True)
     user = relationship("User", back_populates="transactions")
 
 
@@ -64,7 +64,7 @@ class Alert(Base):
     __tablename__ = "alerts"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("public.users.id"), nullable=False)
     title = Column(String(120), nullable=False)
     message = Column(Text, nullable=False)
     # Changed from 'level' to 'severity' to match your Schema
@@ -99,7 +99,7 @@ class FinancialProfile(Base):
     __tablename__ = "financial_profiles"
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("public.users.id"), nullable=False)
     month = Column(String(10), index=True)  # e.g. "2025-10"
     total_income = Column(Float, default=0)
     total_expenses = Column(Float, default=0)
@@ -114,7 +114,7 @@ class AdvisorContext(Base):
     __tablename__ = "advisor_context"
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("public.users.id"), nullable=False)
     alert_summary = Column(Text, nullable=True)
     ai_summary = Column(Text, nullable=True)
     last_profile_snapshot = Column(Text, nullable=True)
