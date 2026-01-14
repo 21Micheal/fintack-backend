@@ -19,7 +19,7 @@ import logging
 import time
 import os
 from contextlib import asynccontextmanager
-from app.models import Transaction, User, Alert, AdvisorContext, FinancialProfile, Goal, AICache
+from app.models import User, Transaction, Alert, AdvisorContext, FinancialProfile, Goal, AICache
 
 # Configure logging first
 logging.basicConfig(
@@ -32,11 +32,10 @@ logger = logging.getLogger(__name__)
 # -------------------- Lifespan Manager --------------------
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup: This will automatically create your tables in Railway Postgres
     async with engine.begin() as conn:
+        # This will now create all tables in the 'public' schema
         await conn.run_sync(Base.metadata.create_all)
     yield
-
 # -------------------- App Initialization --------------------
 app = FastAPI(
     title="Finance Tracker API",

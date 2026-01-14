@@ -8,9 +8,12 @@ import uuid
 from app.db.session import Base
 from datetime import datetime
 
-
 class User(Base):
     __tablename__ = "users"
+    __table_args__ = (
+        UniqueConstraint("email", "phone", name="uix_user_email_phone"),
+        {"schema": "public"}
+    )
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     email = Column(String, unique=True, nullable=True)
@@ -24,14 +27,9 @@ class User(Base):
     advisor_context = relationship("AdvisorContext", back_populates="user", uselist=False)
     profiles = relationship("FinancialProfile", back_populates="user")
 
-    __table_args__ = (
-        UniqueConstraint("email", "phone", name="uix_user_email_phone"),
-        {"schema": "public"}
-    )
-
-
 class Transaction(Base):
     __tablename__ = "transactions"
+    __table_args__ = {"schema": "public"}
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     name = Column(String(255), nullable=True)
@@ -55,32 +53,28 @@ class Transaction(Base):
     currency = Column(String, default="KES")
     raw_content = Column(Text, nullable=True)
 
+    # Point to public.users.id
     user_id = Column(UUID(as_uuid=True), ForeignKey("public.users.id"), nullable=True)
     user = relationship("User", back_populates="transactions")
 
-
-
 class Alert(Base):
     __tablename__ = "alerts"
+    __table_args__ = {"schema": "public"}
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     user_id = Column(UUID(as_uuid=True), ForeignKey("public.users.id"), nullable=False)
     title = Column(String(120), nullable=False)
     message = Column(Text, nullable=False)
-    # Changed from 'level' to 'severity' to match your Schema
-    severity = Column(String(50), default="info")  # "info", "warning", "critical", "goal"
-    category = Column(String(50), nullable=True)   # "spending", "savings", "budget"
+    severity = Column(String(50), default="info")
+    category = Column(String(50), nullable=True)
     ai_insight = Column(Text, nullable=True)
     is_read = Column(Boolean, default=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, onupdate=datetime.utcnow)
 
-    def __repr__(self):
-        return f"<Alert(title='{self.title}', severity='{self.severity}')>"
-
-
 class AICache(Base):
     __tablename__ = "ai_cache"
+    __table_args__ = {"schema": "public"}
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     user_id = Column(UUID(as_uuid=True), index=True)
@@ -94,13 +88,13 @@ class AICache(Base):
     last_refreshed_at = Column(DateTime(timezone=True), server_default=func.now())
     refresh_needed = Column(Boolean, default=False)
 
-
 class FinancialProfile(Base):
     __tablename__ = "financial_profiles"
+    __table_args__ = {"schema": "public"}
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     user_id = Column(UUID(as_uuid=True), ForeignKey("public.users.id"), nullable=False)
-    month = Column(String(10), index=True)  # e.g. "2025-10"
+    month = Column(String(10), index=True)
     total_income = Column(Float, default=0)
     total_expenses = Column(Float, default=0)
     savings = Column(Float, default=0)
@@ -109,9 +103,9 @@ class FinancialProfile(Base):
 
     user = relationship("User", back_populates="profiles")
 
-
 class AdvisorContext(Base):
     __tablename__ = "advisor_context"
+    __table_args__ = {"schema": "public"}
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     user_id = Column(UUID(as_uuid=True), ForeignKey("public.users.id"), nullable=False)
@@ -122,18 +116,12 @@ class AdvisorContext(Base):
 
     user = relationship("User", back_populates="advisor_context")
 
-    def is_stale(self, days: int = 7):
-        """Check if cached AI summary is older than X days."""
-        if not self.last_generated_at:
-            return True
-        return (datetime.utcnow() - self.last_generated_at).days > days
-
-
 class Goal(Base):
     __tablename__ = "savings_goals"
+    __table_args__ = {"schema": "public"}
     
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    user_id = Column(UUID(as_uuid=True), nullable=False, index=True)  # Links to auth.users id
+    user_id = Column(UUID(as_uuid=True), nullable=False, index=True)
     name = Column(String(100), nullable=False)
     target_amount = Column(Float, nullable=False)
     current_amount = Column(Float, default=0.0)
