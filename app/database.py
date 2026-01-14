@@ -2,6 +2,7 @@
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
 from app.config import settings
+from sqlalchemy.pool import NullPool
 import os
 import ssl
 
@@ -31,7 +32,6 @@ def get_database_url():
 def create_engine_with_ssl():
     db_url = get_database_url()
     
-    # SSL context for Supabase/Railway
     ssl_context = None
     if settings.ENVIRONMENT == "production":
         ssl_context = ssl.create_default_context()
@@ -40,10 +40,11 @@ def create_engine_with_ssl():
     
     return create_async_engine(
         db_url,
-        echo=True,  # Keep echo for debugging
-        pool_size=10,
-        max_overflow=20,
-        pool_pre_ping=True,
+        echo=True,
+        prepared_statement_cache_size=0,
+        # When using Supabase Pooler (6543), use NullPool
+        # This prevents the "prepared statement already exists" error
+        poolclass=NullPool if "6543" in db_url else None,
         connect_args={
             "ssl": ssl_context
         } if ssl_context else {}

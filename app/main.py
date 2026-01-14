@@ -12,6 +12,7 @@ from app.api.routes import insights
 from app.api.routes import user_routes
 from app.api.routes import auth_routes
 from app.api.routes import advisor
+from app.database import engine, Base
 from app.config import settings
 import uvicorn
 import logging
@@ -31,15 +32,26 @@ logger = logging.getLogger(__name__)
 # -------------------- Lifespan Manager --------------------
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup
+    # --- Startup Logic ---
     logger.info("🚀 Starting Finance Tracker API...")
+    
+    # Create tables asynchronously
+    try:
+        async with engine.begin() as conn:
+            # This is the async-compatible way to create tables
+            await conn.run_sync(Base.metadata.create_all)
+        logger.info("✅ Database tables synced successfully")
+    except Exception as e:
+        logger.error(f"❌ Failed to sync database tables: {e}")
+        
     yield
-    # Shutdown
+    # --- Shutdown Logic ---
     logger.info("🛑 Shutting down Finance Tracker API...")
 
 # -------------------- App Initialization --------------------
 app = FastAPI(
     title="Finance Tracker API",
+    lifespan=lifespan,
     version="1.0.0",
     description="Backend for financial insights, trends, and AI-driven analytics.",
     # docs_url="/docs" if settings.ENVIRONMENT != "production" else None,

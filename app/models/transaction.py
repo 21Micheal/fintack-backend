@@ -26,6 +26,7 @@ class User(Base):
 
     __table_args__ = (
         UniqueConstraint("email", "phone", name="uix_user_email_phone"),
+        {"schema": "public"}
     )
 
 
