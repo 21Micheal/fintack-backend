@@ -1,34 +1,34 @@
-#!/bin/bash
-# start.sh
+#!/bin/sh
+# start.sh - Simple startup script for Railway
 
-# Activate virtual environment if it exists
-if [ -d "/app/.venv" ]; then
-    source /app/.venv/bin/activate
-fi
+# Set Python path
+export PYTHONPATH=/app:$PYTHONPATH
 
-# Initialize database
-echo "🔄 Initializing database..."
+# Initialize database tables
+echo "🔄 Initializing database tables..."
 python -c "
 import asyncio
 import sys
 import os
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-async def init_db():
-    from app.database import engine, Base
-    from app.models import User, Transaction, Alert, AICache, FinancialProfile, AdvisorContext, Goal
-    
+# Add app to path
+sys.path.insert(0, '/app')
+
+async def init_tables():
     try:
+        from app.database import engine, Base
+        from app.models import User, Transaction, Alert, AICache, FinancialProfile, AdvisorContext, Goal
+        
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
-        print('✅ Database tables created successfully')
+            print('✅ Database tables created successfully')
     except Exception as e:
-        print(f'❌ Error: {e}')
-        sys.exit(1)
+        print(f'⚠️ Warning during table creation: {e}')
+        print('ℹ️ Continuing anyway...')
 
-asyncio.run(init_db())
+# Run async function
+asyncio.run(init_tables())
 "
 
-# Start the application
-echo "🚀 Starting application..."
-exec uvicorn main:app --host=0.0.0.0 --port=${PORT:-8000} --workers=1
+echo "🚀 Starting FastAPI application..."
+exec uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000} --workers 1
