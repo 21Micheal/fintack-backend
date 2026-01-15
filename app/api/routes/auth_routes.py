@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from app.db.session import get_db
 from app.api.deps import get_current_user
-from app.models.transaction import User, Transaction
+from app.models import User, Transaction
 from app.api.routes.user_routes import normalize_phone
 from datetime import datetime
 import httpx
