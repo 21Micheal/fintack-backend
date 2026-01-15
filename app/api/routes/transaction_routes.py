@@ -5,14 +5,13 @@ from sqlalchemy.orm import Session
 import httpx
 from app.config import settings
 from app.db.session import get_db
-from app.models.transaction import Transaction
-from app.models.user import User
+from app.models import Transaction
+from app.models import User
 from app.schemas.transaction_schema import TransactionResponse
 from datetime import datetime
 import logging
 import json
 from app.api.deps import get_current_user 
-from app.models.transaction import User
 from app.core.supabase_client import get_supabase_admin
 import re
 
