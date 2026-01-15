@@ -1,6 +1,6 @@
 # app/core/advisor_ai.py
 from sqlalchemy.orm import Session
-from app.models.transaction import FinancialProfile, AdvisorContext
+from app.models import FinancialProfile, AdvisorContext
 import logging
 from typing import Optional, Dict, Any
 from datetime import datetime

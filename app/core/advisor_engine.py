@@ -7,7 +7,7 @@ import numpy as np
 from decimal import Decimal, ROUND_HALF_UP
 from sqlalchemy.orm import Session
 
-from app.models.transaction import AdvisorContext, FinancialProfile, Transaction as TransactionModel
+from app.models import AdvisorContext, FinancialProfile, Transaction as TransactionModel
 from app.core.advisor_cache_manager import calculate_change
 from app.core.advisor_ai import generate_personalized_advice
 from app.core.advisor_context_manager import update_advisor_context

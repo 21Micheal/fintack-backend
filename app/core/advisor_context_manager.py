@@ -1,5 +1,5 @@
 # app/core/advisor_context_manager.py
-from app.models.transaction import AdvisorContext
+from app.models import AdvisorContext
 from datetime import datetime
 import logging
 

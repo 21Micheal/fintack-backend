@@ -1,7 +1,7 @@
 # app/core/profile_engine.py
 from sqlalchemy import func, extract
 from sqlalchemy.orm import Session
-from app.models.transaction import Transaction, FinancialProfile
+from app.models import Transaction, FinancialProfile
 from datetime import datetime
 import logging
 

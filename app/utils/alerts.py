@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Session
-from app.models.transaction import Transaction, Alert
+from app.models import Transaction, Alert
 from datetime import datetime, timedelta
 
 def generate_alerts_for_user(user_id: str, db: Session):

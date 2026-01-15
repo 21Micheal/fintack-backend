@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session
 from sqlalchemy import and_
 from uuid import UUID
-from app.models.transaction import Goal
+from app.models import Goal
 from app.schemas.goal_schema import GoalCreate, GoalUpdate
 from typing import List, Optional, Union
 from datetime import date

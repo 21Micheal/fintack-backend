@@ -3,7 +3,7 @@
 from datetime import datetime
 from typing import List, Dict, Any
 from app.utils.cache_refresh import should_refresh
-from app.models.transaction import AICache, Alert, Transaction
+from app.models import AICache, Alert, Transaction
 from app.utils.hash_util import summarize_transactions, hash_alert_context
 import logging
 

@@ -3,7 +3,7 @@ import base64
 import requests
 from datetime import datetime
 from app.config import settings
-from app.models.transaction import Transaction
+from app.models import Transaction
 from app.db.session import SessionLocal
 
 def get_access_token():

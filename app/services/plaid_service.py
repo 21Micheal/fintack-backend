@@ -10,7 +10,7 @@ from plaid.api import plaid_api
 from plaid.model.country_code import CountryCode
 from plaid.model.products import Products
 
-from app.models.transaction import Transaction
+from app.models import Transaction
 from app.db.session import SessionLocal
 from app.config import settings
 
