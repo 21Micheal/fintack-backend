@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from typing import List, Union
+from typing import List
 from uuid import UUID
 
 from app.db.session import get_db
@@ -18,7 +18,14 @@ from app.core.goal_crud import (
 )
 from app.schemas.goal_schema import GoalCreate, GoalUpdate, GoalResponse, GoalProgress, GoalSummary
 
-router = APIRouter(prefix="/api/goals", tags=["goals"])
+# ────────────────────────────────────────────────────────────────
+# Create router with strict_slashes=False to allow both /goals and /goals/
+# ────────────────────────────────────────────────────────────────
+router = APIRouter(
+    prefix="/api/goals",
+    tags=["goals"],
+    strict_slashes=False   # ← This is the key change
+)
 
 @router.get("/", response_model=List[GoalResponse])
 def read_goals(
@@ -26,7 +33,6 @@ def read_goals(
     current_user: User = Depends(get_current_user)
 ):
     """Get all goals for the current user"""
-    # current_user.id is passed to the CRUD function which now handles UUID/str
     return get_goals_by_user(db, current_user.id)
 
 @router.get("/summary", response_model=GoalSummary)
@@ -35,7 +41,6 @@ def read_goals_summary(
     current_user: User = Depends(get_current_user)
 ):
     """Get goals summary for the current user"""
-    # ✅ Fixed: Changed current_user["id"] to current_user.id
     return get_goals_summary(db, current_user.id)
 
 @router.get("/{goal_id}", response_model=GoalResponse)
@@ -114,14 +119,16 @@ def add_goal_progress(
             detail="Goal not found"
         )
     
-    # Simple percentage calculation for the response
-    progress_pct = (updated_goal.current_amount / updated_goal.target_amount * 100) if updated_goal.target_amount > 0 else 0
+    progress_pct = (
+        (updated_goal.current_amount / updated_goal.target_amount * 100)
+        if updated_goal.target_amount > 0 else 0
+    )
     
     return {
         "message": "Progress updated successfully",
         "current_amount": updated_goal.current_amount,
         "target_amount": updated_goal.target_amount,
-        "progress_percentage": progress_pct
+        "progress_percentage": round(progress_pct, 2)
     }
 
 @router.delete("/{goal_id}")

@@ -16,11 +16,12 @@ from app.config import settings
 logger = logging.getLogger(__name__)
 security = HTTPBearer(auto_error=False)
 
+# app/api/deps.py - Fix HTTP validation
 def verify_supabase_token_via_http(token: str) -> Optional[dict]:
     """Verify token by calling Supabase API"""
     try:
-        if not settings.SUPABASE_URL:
-            logger.warning("SUPABASE_URL not configured, skipping HTTP validation")
+        if not settings.SUPABASE_URL or not settings.SUPABASE_ANON_KEY:
+            logger.warning("Supabase URL or ANON_KEY not configured, skipping HTTP validation")
             return None
             
         response = requests.get(
@@ -38,6 +39,23 @@ def verify_supabase_token_via_http(token: str) -> Optional[dict]:
             data = response.json()
             logger.info(f"HTTP validation successful for user: {data.get('email')}")
             return data
+        elif response.status_code == 401:
+            # Try with service_role key if available
+            if hasattr(settings, 'SUPABASE_SERVICE_ROLE_KEY') and settings.SUPABASE_SERVICE_ROLE_KEY:
+                logger.info("Trying with service_role key...")
+                response = requests.get(
+                    f"{settings.SUPABASE_URL}/auth/v1/user",
+                    headers={
+                        "Authorization": f"Bearer {token}",
+                        "apikey": settings.SUPABASE_SERVICE_ROLE_KEY
+                    },
+                    timeout=10
+                )
+                if response.status_code == 200:
+                    return response.json()
+            
+            logger.warning(f"HTTP validation failed with 401: {response.text}")
+            return None
         else:
             logger.warning(f"HTTP validation failed: {response.status_code} - {response.text}")
             
