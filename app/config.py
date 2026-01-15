@@ -2,6 +2,7 @@
 from pydantic_settings import BaseSettings
 from pydantic import ConfigDict, PostgresDsn
 from typing import Optional
+import os
 
 
 class Settings(BaseSettings):
@@ -19,10 +20,10 @@ class Settings(BaseSettings):
     DATABASE_URL: Optional[str] = None
     
     # --- Supabase API ---
-    SUPABASE_URL: str
-    SUPABASE_ANON_KEY: str
-    SUPABASE_SERVICE_KEY: str
-    SUPABASE_JWT_SECRET: str
+    SUPABASE_URL: str = os.getenv("SUPABASE_URL", "")
+    SUPABASE_ANON_KEY: str = os.getenv("SUPABASE_ANON_KEY", "")
+    SUPABASE_SERVICE_KEY: str = os.getenv("SUPABASE_SERVICE_KEY", "")
+    SUPABASE_JWT_SECRET: str = os.getenv("SUPABASE_JWT_SECRET", "")
     
     # --- Auth ---
     SECRET_KEY: str = "LGBTQ"
