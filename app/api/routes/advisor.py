@@ -9,7 +9,7 @@ import logging
 
 from app.api.deps import get_current_user
 from app.db.session import get_db
-from app.models.transaction import User, Transaction as TransactionModel, FinancialProfile
+from app.models import User, Transaction as TransactionModel, FinancialProfile
 from app.core.advisor_engine import get_or_generate_advice, analyze_transactions_for_insights
 from app.core.insights_ai import generate_ai_insight as InsightGenerator
 

@@ -10,7 +10,7 @@ from typing import Union
 # Removed sklearn dependency and use numpy.polyfit for simple linear regression fallback
 from sqlalchemy.orm import Session
 from app.db.session import get_db
-from app.models.transaction import Transaction, User
+from app.models import Transaction, User
 # Import current user dependency and User model for authentication
 from app.api.deps import get_current_user
 from prophet import Prophet

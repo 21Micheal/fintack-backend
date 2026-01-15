@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from typing import List
 from app.db.session import get_db
-from app.models.transaction import Alert  # adjust path
+from app.models import Alert  # adjust path
 from app.schemas.alert import AlertCreate, AlertOut, AlertUpdate  # recommended: use Pydantic
 from app.utils.alerts import generate_alerts_for_user
 

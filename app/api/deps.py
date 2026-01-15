@@ -10,7 +10,7 @@ import requests
 from typing import Optional
 
 from app.db.session import get_db
-from app.models.transaction import User
+from app.models import User
 from app.config import settings
 
 logger = logging.getLogger(__name__)

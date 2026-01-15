@@ -2,7 +2,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from app.db.session import get_db
-from app.models.transaction import AICache, FinancialProfile, AdvisorContext, User
+from app.models import AICache, FinancialProfile, AdvisorContext, User
 from app.core.profile_engine import update_financial_profile
 from app.core.advisor_ai import generate_personalized_advice
 from app.core.advisor_context_manager import update_advisor_context

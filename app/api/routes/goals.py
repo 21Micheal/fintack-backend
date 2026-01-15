@@ -5,7 +5,7 @@ from uuid import UUID
 
 from app.db.session import get_db
 from app.api.deps import get_current_user
-from app.models.transaction import User
+from app.models import User
 from app.core.goal_crud import (
     get_goals_by_user, 
     get_goal_by_id, 

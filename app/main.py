@@ -3,8 +3,7 @@ from fastapi.responses import JSONResponse
 from fastapi import FastAPI, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.encoders import jsonable_encoder
-from app.api.routes import transaction_routes, webhook_routes
-from app.api.routes.bank import router as bank_router 
+from app.api.routes import transaction_routes
 from app.api.routes import goals 
 from app.api.routes import ai_routes
 from app.api.routes import alerts
@@ -167,9 +166,7 @@ async def add_security_headers(request: Request, call_next):
     return response
 
 # -------------------- Routers --------------------
-app.include_router(bank_router, prefix="/api")
 app.include_router(transaction_routes.router, prefix="/api", tags=["Transactions"])
-app.include_router(webhook_routes.router)
 app.include_router(ai_routes.router)
 app.include_router(alerts.router)
 app.include_router(insights.router)
