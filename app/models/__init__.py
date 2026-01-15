@@ -7,6 +7,8 @@ from app.models.financial_profile import FinancialProfile
 from app.models.advisor_context import AdvisorContext
 from app.models.goal import Goal
 
+# No need for relationships import anymore
+
 __all__ = [
     'User',
     'Transaction',

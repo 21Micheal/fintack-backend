@@ -1,17 +1,17 @@
 #!/bin/sh
-# start.sh for Railway
+# start.sh
 
-# Set default port if PORT is not set
+# Set port
 PORT=${PORT:-8000}
+echo "🚀 Starting on port $PORT"
 
 # Initialize database
-echo "🔄 Initializing database..."
 python -c "
 import asyncio
 import sys
 sys.path.insert(0, '/app')
 
-async def init_db():
+async def init():
     try:
         from app.database import engine, Base
         from app.models.user import User
@@ -24,21 +24,12 @@ async def init_db():
         
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
-        print('✅ Tables created')
-        
-        # Try to setup relationships
-        try:
-            from app.models import relationships
-            print('✅ Relationships configured')
-        except:
-            print('⚠️ No relationships module')
-            
+        print('✅ Database ready')
     except Exception as e:
-        print(f'⚠️ {e}')
+        print(f'⚠️ Note: {e}')
 
-asyncio.run(init_db())
+asyncio.run(init())
 "
 
 # Start the app
-echo "🚀 Starting application on port $PORT..."
 exec uvicorn app.main:app --host 0.0.0.0 --port "$PORT" --workers 1

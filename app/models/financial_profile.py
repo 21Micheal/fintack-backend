@@ -1,3 +1,4 @@
+# app/models/financial_profile.py
 from sqlalchemy import Column, String, Float, DateTime, ForeignKey, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
@@ -20,8 +21,8 @@ class FinancialProfile(Base):
     biggest_expense_category = Column(String(50))
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     
-    # Relationship
-    user = relationship("User", back_populates="financial_profiles")
+    # Define relationship as string
+    user = relationship("User", back_populates="financial_profiles", lazy="select")
     
     def __repr__(self):
         return f"<FinancialProfile(user_id={self.user_id}, month={self.month}, savings={self.savings})>"

@@ -1,8 +1,8 @@
 # app/models/alert.py
 from sqlalchemy import Column, String, Text, DateTime, Boolean, ForeignKey
+from sqlalchemy.orm import relationship
 from sqlalchemy.dialects.postgresql import UUID
 from datetime import datetime
-from sqlalchemy.orm import relationship
 import uuid
 from app.database import Base
 
@@ -20,8 +20,8 @@ class Alert(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, onupdate=datetime.utcnow)
     
-    # Relationship
-    user = relationship("User", back_populates="alerts")
+    # Define relationship as string
+    user = relationship("User", back_populates="alerts", lazy="select")
     
     def __repr__(self):
         return f"<Alert(id={self.id}, title={self.title}, severity={self.severity})>"
