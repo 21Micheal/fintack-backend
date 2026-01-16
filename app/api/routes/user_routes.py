@@ -56,18 +56,26 @@ async def link_phone_to_user(
     
     normalized_phone = normalize_phone(phone)
 
-    # 1. Update current user's phone
+    # CHECK 1: Ensure phone isn't taken by SOMEONE ELSE
+    existing_user = db.query(User).filter(User.phone == normalized_phone).first()
+    if existing_user and existing_user.id != current_user.id:
+        raise HTTPException(status_code=409, detail="This phone number is already linked to another account.")
+
+    # 2. Update current user's phone
     current_user.phone = normalized_phone
     
-    # 2. THE FIX: Claim orphaned transactions
-    # Find transactions that have this phone number but no user_id assigned
+    # 3. Claim orphaned transactions (Crucial logic)
     claimed_count = db.query(Transaction).filter(
         Transaction.phone_number == normalized_phone,
         Transaction.user_id.is_(None)
     ).update({"user_id": current_user.id}, synchronize_session=False)
     
-    db.commit()
-    db.refresh(current_user)
+    try:
+        db.commit()
+        db.refresh(current_user)
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Failed to link phone number")
     
     return {
         "message": f"Phone linked and {claimed_count} transactions claimed.",
@@ -82,20 +90,24 @@ async def update_phone(
     current_user: User = Depends(get_current_user)
 ):
     """
-    Update user's phone number
+    Update user's phone number OR Unlink if null
     """
+    # We use .get() without a default to detect if key exists but is None
     phone = data.get("phone_number")
-    email = data.get("email")
     
-    if not phone:
-        raise HTTPException(status_code=400, detail="Phone number is required")
-    
-    # Check if phone is already linked to another user
+    # CASE 1: UNLINKING (Phone is explicitly None)
+    if phone is None:
+        current_user.phone = None
+        db.commit()
+        db.refresh(current_user)
+        return {"message": "Phone number unlinked successfully", "phone": None}
+
+    # CASE 2: UPDATING (Phone is provided)
+    # Check if taken by another user
     existing_user = db.query(User).filter(User.phone == phone).first()
     if existing_user and existing_user.id != current_user.id:
-        raise HTTPException(status_code=409, detail="Phone number already linked to another account")
+        raise HTTPException(status_code=409, detail="Phone number already linked to another account.")
     
-    # Update phone
     current_user.phone = phone
     db.commit()
     db.refresh(current_user)
