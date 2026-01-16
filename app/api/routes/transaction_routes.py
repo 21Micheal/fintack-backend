@@ -22,87 +22,71 @@ logger = logging.getLogger(__name__)
 # Create a router with prefix and tags
 router = APIRouter(tags=["Transactions"])
 
-def classify_transaction(transaction: dict) -> str:
+# ✅ FIX 1: Robust Helper to get values from Dict OR SQLAlchemy Object
+def get_attr(obj, key, default=None):
+    if isinstance(obj, dict):
+        return obj.get(key, default)
+    return getattr(obj, key, default)
+
+# ✅ FIX 2: Improved Classification Logic
+def classify_transaction(transaction) -> str:
     """
     Comprehensive transaction classification.
+    Handles both Dictionary and SQLAlchemy Model inputs.
     """
-    # Check existing type
-    if transaction.get('type') in ['income', 'expense']:
-        return transaction['type']
+    # 1. Check if we can determine strictly by description text (High Priority)
+    description = (get_attr(transaction, 'description') or '').lower()
+    raw_text = (get_attr(transaction, 'raw_content') or '').lower()
+    full_text = f"{description} {raw_text}"
+
+    # Strong Income Signals
+    if any(word in full_text for word in [
+        'received from', 'money received', 'deposit', 'credited', 
+        'salary', 'dividend', 'refund', 'reversal'
+    ]):
+        return 'income'
+
+    # Strong Expense Signals
+    if any(word in full_text for word in [
+        'sent to', 'paid to', 'pay bill', 'buy goods', 
+        'withdraw', 'purchase', 'cost', 'charge'
+    ]):
+        return 'expense'
+
+    # 2. Check Category (Secondary Priority)
+    category = (get_attr(transaction, 'category') or '').lower()
     
-    # Check category first (most reliable for your data)
-    category = (transaction.get('category') or '').lower()
-    
-    # Definitely expense categories
-    expense_categories = [
-        'shopping', 'food', 'transport', 'entertainment',
-        'bills', 'utilities', 'rent', 'groceries',
-        'dining', 'travel', 'subscriptions', 'shopping',
-        'retail', 'supermarket', 'mall'
-    ]
-    
-    for expense_cat in expense_categories:
-        if expense_cat in category:
-            return 'expense'
-    
-    # Income categories
     income_categories = [
-        'salary', 'freelance', 'business', 'investment',
-        'refund', 'bonus', 'gift', 'dividend', 'payment'
+        'salary', 'business', 'income', 'investment', 
+        'deposit', 'savings', 'gift'
     ]
     
     for income_cat in income_categories:
         if income_cat in category:
             return 'income'
-    
-    # Check description
-    description = (transaction.get('description') or '').lower()
-    if any(word in description for word in ['received', 'from', 'credited', 'deposit']):
-        return 'income'
-    
-    if any(word in description for word in ['sent to', 'paid to', 'withdraw', 'purchase', 'shopping']):
-        return 'expense'
-    
-    # Default: category-based heuristic
-    # Shopping-like categories are expenses
-    if 'shop' in category or 'store' in category or 'market' in category:
-        return 'expense'
-    
-    # Most transactions are expenses
+            
+    # If no strong signal, fallback to previous logic (Default Expense)
     return 'expense'
 
+# ✅ FIX 3: Improved M-Pesa Type Logic
 def determine_mpesa_transaction_type(transaction_type: str, amount: float) -> str:
     """
     Determine if M-Pesa transaction is income or expense based on transaction type.
     """
-    transaction_type_lower = transaction_type.lower()
+    t_type = (transaction_type or "").lower()
     
-    # Income transactions
-    if any(word in transaction_type_lower for word in [
-        "deposit", "receive", "credit", "from", 
-        "payment received", "money received"
-    ]):
+    # 1. Explicit Income Types
+    if any(x in t_type for x in ["deposit", "receive", "salary", "give","business payment"]):
         return "income"
-    
-    # Expense transactions  
-    if any(word in transaction_type_lower for word in [
-        "withdrawal", "send", "payment", "pay bill", 
-        "buy goods", "airtime", "transfer", "sent to",
-        "paid to", "purchase"
-    ]):
+        
+    # 2. Explicit Expense Types
+    if any(x in t_type for x in ["pay bill", "buy goods", "withdrawal", "sent", "payment", "fee", "take", "charge"]):
         return "expense"
-    
-    # Default based on common patterns
-    # Pay Bill transactions are usually expenses
-    if "pay bill" in transaction_type_lower:
-        return "expense"
-    
-    # Receiving money is usually income
-    if "received" in transaction_type_lower:
-        return "income"
-    
-    # If we can't determine, use a safer default
-    # Most M-Pesa transactions are expenses (payments)
+
+    # 3. Contextual Heuristics
+    # If it's a "Customer Transfer", it is ambiguous. 
+    # Usually, if you initiated it (Callback), it's an expense (Send Money).
+    # If you received it, M-Pesa rarely sends a Callback unless you are a merchant.
     return "expense"
 
 @router.post("/mpesa/callback")
@@ -174,7 +158,7 @@ async def get_mpesa_transactions(
     db: Session = Depends(get_db)
 ):
     """
-    Fetch all transactions for the current user with proper classification.
+    Fetch all transactions for the current user with AUTO-CORRECTION for types.
     """
     try:
         transactions = db.query(Transaction).filter(
@@ -182,23 +166,23 @@ async def get_mpesa_transactions(
             Transaction.source.in_(["mpesa", "sms"])
         ).order_by(Transaction.date.desc()).all()
         
-        # ✅ Ensure all transactions are properly classified
+        reclassified_count = 0
+
+        # ✅ FIX 4: Run classification on EVERY fetch to catch errors
         for txn in transactions:
-            if not txn.type or txn.type not in ["income", "expense"]:
-                correct_type = classify_transaction(txn)
-                if txn.type != correct_type:
-                    txn.type = correct_type
-                    logger.debug(f"Reclassified transaction {txn.id} as {correct_type}")
+            # Calculate what the type SHOULD be
+            calculated_type = classify_transaction(txn)
+            
+            # If the DB has it wrong (or missing), update it
+            if txn.type != calculated_type:
+                logger.info(f"🔄 Auto-correcting Txn {txn.id}: {txn.type} -> {calculated_type}")
+                txn.type = calculated_type
+                reclassified_count += 1
         
-        # Commit any reclassifications
-        db.commit()
-        
-        logger.info("📱 Fetched %d transactions for user %s", len(transactions), current_user.id)
-        
-        # Log classification summary
-        income_count = sum(1 for t in transactions if t.type == "income")
-        expense_count = sum(1 for t in transactions if t.type == "expense")
-        logger.info("📊 Classification: %d income, %d expense", income_count, expense_count)
+        # Commit changes if we fixed anything
+        if reclassified_count > 0:
+            db.commit()
+            logger.info(f"✅ Auto-corrected {reclassified_count} transactions")
         
         return transactions
         
