@@ -1,6 +1,6 @@
 from pydantic import BaseModel
 from datetime import date, datetime
-from typing import Optional, Union
+from typing import Optional, Union, Literal
 from uuid import UUID
 
 
@@ -22,11 +22,17 @@ class TransactionResponse(BaseModel):
     amount: float
     date: date
     category: Optional[str]
-    account_id: Optional[str]
-    transaction_type: Optional[str]
-    description: Optional[str]
-    created_at: Optional[datetime]
-    updated_at: Optional[datetime] = None
+    type: Literal["income", "expense"]  # This was missing!
+    
+    transaction_type: Optional[str] = None
+    source: Optional[str] = None
+    description: Optional[str] = None
+    account_id: Optional[str] = None
+    phone_number: Optional[str] = None
+    reference: Optional[str] = None  # Add this too for M-Pesa
+    raw_content: Optional[str] = None  # And this for debugging
+    created_at: datetime
+    updated_at: datetime
 
     model_config = {
         "from_attributes": True # ✅ Correct for V2
