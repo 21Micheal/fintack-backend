@@ -33,6 +33,7 @@ def classify_transaction(transaction) -> str:
     """
     Comprehensive transaction classification.
     Handles both Dictionary and SQLAlchemy Model inputs.
+    ⚠️ IMPORTANT: Only reclassifies if we have strong evidence. Otherwise keeps existing type.
     """
     # 1. Check if we can determine strictly by description text (High Priority)
     description = (get_attr(transaction, 'description') or '').lower()
@@ -41,15 +42,15 @@ def classify_transaction(transaction) -> str:
 
     # Strong Income Signals
     if any(word in full_text for word in [
-        'received from', 'money received', 'deposit', 'credited', 
-        'salary', 'dividend', 'refund', 'reversal'
+        'received from', 'you have received', 'money received', 'deposit', 
+        'credited', 'salary', 'dividend', 'refund', 'reversal'
     ]):
         return 'income'
 
-    # Strong Expense Signals
+    # Strong Expense Signals  
     if any(word in full_text for word in [
         'sent to', 'paid to', 'pay bill', 'buy goods', 
-        'withdraw', 'purchase', 'cost', 'charge'
+        'withdraw', 'purchase', 'cost', 'charge', 'till number'
     ]):
         return 'expense'
 
@@ -64,8 +65,14 @@ def classify_transaction(transaction) -> str:
     for income_cat in income_categories:
         if income_cat in category:
             return 'income'
-            
-    # If no strong signal, fallback to previous logic (Default Expense)
+    
+    # ✅ CRITICAL FIX: If we can't determine confidently, KEEP the existing type
+    # Don't blindly default to 'expense'
+    existing_type = get_attr(transaction, 'type')
+    if existing_type in ['income', 'expense']:
+        return existing_type
+    
+    # Only default to expense if we have no type at all
     return 'expense'
 
 # ✅ FIX 3: Improved M-Pesa Type Logic
@@ -158,7 +165,8 @@ async def get_mpesa_transactions(
     db: Session = Depends(get_db)
 ):
     """
-    Fetch all transactions for the current user with AUTO-CORRECTION for types.
+    Fetch all transactions for the current user.
+    ✅ IMPROVED: No auto-correction on fetch - trust the database.
     """
     try:
         transactions = db.query(Transaction).filter(
@@ -166,23 +174,12 @@ async def get_mpesa_transactions(
             Transaction.source.in_(["mpesa", "sms"])
         ).order_by(Transaction.date.desc()).all()
         
-        reclassified_count = 0
-
-        # ✅ FIX 4: Run classification on EVERY fetch to catch errors
-        for txn in transactions:
-            # Calculate what the type SHOULD be
-            calculated_type = classify_transaction(txn)
-            
-            # If the DB has it wrong (or missing), update it
-            if txn.type != calculated_type:
-                logger.info(f"🔄 Auto-correcting Txn {txn.id}: {txn.type} -> {calculated_type}")
-                txn.type = calculated_type
-                reclassified_count += 1
+        logger.info(f"📊 Fetched {len(transactions)} transactions for user {current_user.email}")
         
-        # Commit changes if we fixed anything
-        if reclassified_count > 0:
-            db.commit()
-            logger.info(f"✅ Auto-corrected {reclassified_count} transactions")
+        # Debug: Log first few transactions to verify types
+        if transactions:
+            for txn in transactions[:3]:
+                logger.info(f"  → {txn.reference}: {txn.type} | {txn.amount} | {txn.name}")
         
         return transactions
         
