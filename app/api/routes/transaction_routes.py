@@ -306,6 +306,37 @@ async def create_mpesa_transaction(
             logger.info(f"⏭️ Duplicate ignored: {payload.tx_code}")
             raise HTTPException(status_code=409, detail="Transaction already exists")
 
+        # ✅ CRITICAL FIX: Don't blindly trust the client's type classification
+        # Re-classify based on the raw SMS text and counterparty
+        raw_text = (payload.raw_text or "").lower()
+        counterparty = (payload.counterparty or "").lower()
+        
+        # Determine correct type based on SMS content
+        correct_type = payload.type  # Start with what client sent
+        
+        # Override if we detect clear income signals
+        if any(keyword in raw_text for keyword in [
+            'received from', 'you have received', 'credited', 
+            'deposit', 'sent you', 'paid to you'
+        ]):
+            correct_type = 'income'
+            logger.info(f"🔄 Corrected to INCOME based on SMS: {payload.tx_code}")
+        
+        # Override if we detect clear expense signals
+        elif any(keyword in raw_text for keyword in [
+            'sent to', 'paid to', 'buy goods', 'till number',
+            'paybill', 'withdrawn', 'withdraw', 'purchase'
+        ]):
+            correct_type = 'expense'
+            logger.info(f"🔄 Corrected to EXPENSE based on SMS: {payload.tx_code}")
+        
+        # Log if we're changing the classification
+        if correct_type != payload.type:
+            logger.warning(
+                f"⚠️ Type mismatch for {payload.tx_code}: "
+                f"Client sent '{payload.type}' but corrected to '{correct_type}'"
+            )
+
         txn = Transaction(
             user_id=current_user.id,
             name=payload.counterparty or "M-Pesa",
@@ -313,9 +344,9 @@ async def create_mpesa_transaction(
             date=payload.occurred_at,
             category="M-Pesa",
             reference=payload.tx_code,
-            type=payload.type,
+            type=correct_type,  # ✅ Use corrected type
             source="sms",
-            description=f"M-Pesa {payload.type}",
+            description=f"M-Pesa {correct_type}: {payload.counterparty or 'Transaction'}",
             raw_content=payload.raw_text
         )
 
@@ -323,9 +354,17 @@ async def create_mpesa_transaction(
         db.commit()
         db.refresh(txn)
 
-        logger.info(f"✅ M-Pesa transaction saved: {payload.tx_code}")
+        logger.info(
+            f"✅ M-Pesa transaction saved: {payload.tx_code} "
+            f"(Type: {correct_type}, Amount: {payload.amount})"
+        )
 
-        return {"status": "success", "id": txn.id}
+        return {
+            "status": "success", 
+            "id": txn.id,
+            "type": correct_type,  # Return the corrected type to client
+            "corrected": correct_type != payload.type
+        }
 
     except HTTPException:
         raise
@@ -363,56 +402,6 @@ async def sync_from_supabase(
     except Exception as e:
         logger.error("❌ Failed to sync from Supabase: %s", str(e))
         raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.post("/auth/link_phone")
-async def link_phone(
-    data: dict,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
-):
-    phone = data.get("phone")
-    if not phone:
-        raise HTTPException(status_code=400, detail="Phone number required")
-    
-    # 1. Ensure phone number is unique to prevent account hijacking
-    existing = db.query(User).filter(User.phone == phone).first()
-    if existing and existing.id != current_user.id:
-        raise HTTPException(status_code=400, detail="Phone number already linked to another account")
-    
-    # 2. Update local user record
-    current_user.phone = phone
-    db.add(current_user)
-    
-    # 3. Update Supabase metadata (Optional but recommended for Auth consistency)
-    try:
-        supabase_admin = get_supabase_admin()
-        supabase_admin.auth.admin.update_user_by_id(
-            current_user.id,
-            {"user_metadata": {"phone_number": phone}}
-        )
-    except Exception as e:
-        logger.warning(f"⚠️ Supabase sync failed: {str(e)}")
-
-    # 4. INTERNAL SYNC: Reassign all orphaned transactions
-    # This combines your previous steps 2 and 3 into one efficient update
-    updated_count = db.query(Transaction).filter(
-        Transaction.account_id == phone,
-        Transaction.user_id.is_(None)
-    ).update({"user_id": current_user.id}, synchronize_session=False)
-    
-    try:
-        db.commit()
-    except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail="Database update failed")
-
-    return {
-        "status": "success",
-        "message": "Phone linked successfully",
-        "phone": phone,
-        "linked_transactions_count": updated_count
-    }
 
 
 # Add this temporary endpoint to fix your existing data
@@ -467,7 +456,129 @@ async def fix_all_transactions(
     except Exception as e:
         logger.error(f"Error fixing transactions: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+@router.get("/mpesa/transactions/diagnose")
+async def diagnose_transactions(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Diagnostic endpoint to see what's wrong with transaction classification.
+    Shows raw data, current classification, and what it SHOULD be.
+    """
+    try:
+        transactions = db.query(Transaction).filter(
+            Transaction.user_id == current_user.id,
+            Transaction.source.in_(["mpesa", "sms"])
+        ).order_by(Transaction.date.desc()).limit(20).all()
+        
+        results = []
+        misclassified = 0
+        
+        for txn in transactions:
+            raw = (txn.raw_content or "").lower()
+            
+            # Determine what it SHOULD be
+            should_be = "expense"  # default
+            
+            if any(word in raw for word in [
+                'received from', 'credited', 'you have received', 
+                'sent you', 'paid to you', 'deposit'
+            ]):
+                should_be = "income"
+            elif any(word in raw for word in [
+                'sent to', 'paid to', 'buy goods', 'till',
+                'paybill', 'withdraw', 'purchase'
+            ]):
+                should_be = "expense"
+            
+            is_wrong = (txn.type != should_be)
+            if is_wrong:
+                misclassified += 1
+            
+            results.append({
+                "id": txn.id,
+                "reference": txn.reference,
+                "amount": txn.amount,
+                "counterparty": txn.name,
+                "current_type": txn.type,
+                "should_be_type": should_be,
+                "is_misclassified": is_wrong,
+                "raw_snippet": raw[:100] if raw else None,
+                "date": txn.date.isoformat()
+            })
+        
+        return {
+            "total_checked": len(results),
+            "misclassified_count": misclassified,
+            "accuracy_percent": round((len(results) - misclassified) / len(results) * 100, 1) if results else 0,
+            "transactions": results,
+            "note": "If accuracy is low, run /mpesa/transactions/fix-all to correct them"
+        }
+        
+    except Exception as e:
+        logger.error(f"Diagnostic error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
+
+@router.post("/mpesa/transactions/fix-all")
+async def fix_all_misclassified(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Fix ALL misclassified transactions for current user.
+    """
+    try:
+        transactions = db.query(Transaction).filter(
+            Transaction.user_id == current_user.id,
+            Transaction.source.in_(["mpesa", "sms"])
+        ).all()
+        
+        fixed = []
+        
+        for txn in transactions:
+            raw = (txn.raw_content or "").lower()
+            original_type = txn.type
+            
+            # Determine correct type
+            correct_type = "expense"
+            
+            if any(word in raw for word in [
+                'received from', 'credited', 'you have received', 
+                'sent you', 'paid to you', 'deposit'
+            ]):
+                correct_type = "income"
+            elif any(word in raw for word in [
+                'sent to', 'paid to', 'buy goods', 'till',
+                'paybill', 'withdraw', 'purchase'
+            ]):
+                correct_type = "expense"
+            
+            # Fix if wrong
+            if original_type != correct_type:
+                txn.type = correct_type
+                fixed.append({
+                    "reference": txn.reference,
+                    "amount": txn.amount,
+                    "from": original_type,
+                    "to": correct_type,
+                    "raw": raw[:80]
+                })
+        
+        if fixed:
+            db.commit()
+            logger.info(f"✅ Fixed {len(fixed)} transactions for user {current_user.email}")
+        
+        return {
+            "fixed_count": len(fixed),
+            "fixed_transactions": fixed[:10],  # Show first 10
+            "message": f"Successfully corrected {len(fixed)} transactions"
+        }
+        
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Fix error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 # --- OLD PLAID TRANSACTION ROUTES (COMMENTED OUT) ---

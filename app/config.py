@@ -14,7 +14,7 @@ class Settings(BaseSettings):
     # --- Supabase Database (Production) ---
     # This should be your Supabase PostgreSQL connection string
     # Format: postgresql://postgres:[YOUR-PASSWORD]@db.jusvwaobbuiqblwnjler.supabase.co:5432/postgres
-    DATABASE_URL: str
+    DATABASE_URL: str = os.getenv("DATABASE_URL", "postgresql://postgres:POSTGRES.21MYK@db.jusvwaobbuiqblwnjler.supabase.co:5432/postgres")
     
     # For backward compatibility, alias DATABASE_URL to SUPABASE_DB_URL
     DATABASE_URL: Optional[str] = None
